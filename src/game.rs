@@ -307,7 +307,7 @@ impl GameState {
         let col = ((mouse_x - layout.board_x) / layout.cell_size) as i16;
         let row = ((mouse_y - layout.board_y) / layout.cell_size) as i16;
 
-        if col < 0 || col >= GRID_SIZE || row < 0 || row >= GRID_SIZE {
+        if !(0..GRID_SIZE).contains(&col) || !(0..GRID_SIZE).contains(&row) {
             return None;
         }
 

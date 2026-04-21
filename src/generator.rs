@@ -5,14 +5,14 @@ pub fn generate_level(total_cells: usize) -> Level {
     let size = (total_cells as f64).sqrt() as i16;
     let checkpoint_count = checkpoint_count(size, total_cells);
 
-    if let Some(path) = generate_path(size as i16) {
+    if let Some(path) = generate_path(size) {
         return Level {
             checkpoints: checkpoints_from_path(&path, checkpoint_count),
         };
     }
 
     Level {
-        checkpoints: checkpoints_from_path(&snake_path(size as i16), checkpoint_count),
+        checkpoints: checkpoints_from_path(&snake_path(size), checkpoint_count),
     }
 }
 
