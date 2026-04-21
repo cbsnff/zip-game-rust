@@ -8,9 +8,7 @@ It is designed to stay fast, minimal, and readable both on desktop and in the br
 
 ## Demo
 
-<video src="assets/demo.mp4" controls muted playsinline width="720">
-  Your browser does not support the video tag.
-</video>
+https://github.com/user-attachments/assets/b59022fe-d4d6-4579-aeca-3045c479dfcf
 
 ## Notes
 
