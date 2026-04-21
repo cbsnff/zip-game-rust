@@ -12,6 +12,7 @@ enum AppState {
 }
 
 fn start_new_game() -> AppState {
+    macroquad::rand::srand((macroquad::miniquad::date::now() * 1_000_000.0) as u64);
     AppState::Game(GameState::new(get_time()))
 }
 
@@ -40,7 +41,7 @@ fn render(app: &AppState) -> bool {
     }
 }
 
-#[macroquad::main("PawPath")]
+#[macroquad::main("Zip")]
 async fn main() {
     let mut app = AppState::Start;
 

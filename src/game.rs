@@ -7,7 +7,6 @@ const ORANGE_BG: Color = color_u8!(245, 99, 28, 255);
 const ORANGE_PATH: Color = color_u8!(231, 83, 36, 255);
 const ORANGE_SOFT: Color = color_u8!(255, 229, 214, 255);
 const CREAM: Color = color_u8!(255, 247, 242, 255);
-const TEXT_DARK: Color = color_u8!(39, 35, 33, 255);
 const GRID: Color = color_u8!(226, 216, 210, 255);
 const CHECKPOINT: Color = color_u8!(36, 32, 32, 255);
 const BUTTON_HOVER: Color = color_u8!(255, 241, 232, 255);
@@ -98,6 +97,7 @@ impl GameState {
         self.draw_board(layout);
         self.draw_path(layout);
         self.draw_checkpoints(layout);
+        self.draw_instruction(layout);
     }
 
     pub fn elapsed_seconds(&self) -> i32 {
@@ -268,6 +268,16 @@ impl GameState {
         }
     }
 
+    fn draw_instruction(&self, layout: BoardLayout) {
+        let text = "Connect the dots and fill all cells";
+        let font_size = (screen_width().min(screen_height()) * 0.048).clamp(18.0, 28.0);
+        let text_size = measure_text(text, None, font_size as u16, 1.0);
+        let x = screen_width() / 2.0 - text_size.width / 2.0;
+        let y = (layout.board_y + layout.board_size + 36.0).min(screen_height() - 28.0);
+
+        draw_text(text, x, y, font_size, CHECKPOINT);
+    }
+
     fn cell_center(cell: Cell, layout: BoardLayout) -> (f32, f32) {
         (
             layout.board_x + cell.0 as f32 * layout.cell_size + layout.cell_size / 2.0,
@@ -301,22 +311,30 @@ pub fn draw_start_screen() -> bool {
     clear_background(ORANGE_BG);
 
     let logo_y = screen_height() * 0.22;
+    let metrics = splash_screen_metrics();
 
-    draw_centered_text("PawPath", logo_y + 138.0, 54.0, WHITE);
+    draw_centered_text("Zip", logo_y + screen_height() * 0.16, metrics.title_font_size, WHITE);
 
-    draw_button("Go", screen_height() * 0.72)
+    draw_button("Go", screen_height() * 0.72, metrics)
 }
 
 pub fn draw_game_over_screen(elapsed_seconds: i32) -> bool {
     clear_background(ORANGE_BG);
 
-    draw_centered_text("Nice!", 152.0, 44.0, WHITE);
+    let metrics = splash_screen_metrics();
+    let title_y = screen_height() * 0.28;
+    let time_y = screen_height() * 0.47;
+    let button_y = screen_height() * 0.7;
 
-    let card_y = 190.0;
+    draw_centered_text("Good Job!", title_y, metrics.subtitle_font_size, WHITE);
+    draw_centered_text(
+        &format!("0:{:02}", elapsed_seconds),
+        time_y,
+        metrics.timer_font_size,
+        WHITE,
+    );
 
-    draw_centered_text(&format!("0:{:02}", elapsed_seconds), card_y + 132.0, 34.0, TEXT_DARK);
-
-    draw_button("New Game", screen_height() * 0.76)
+    draw_button("New Game", button_y, metrics)
 }
 
 fn draw_centered_text(text: &str, y: f32, font_size: f32, color: Color) {
@@ -324,10 +342,37 @@ fn draw_centered_text(text: &str, y: f32, font_size: f32, color: Color) {
     draw_text(text, screen_width() / 2.0 - size.width / 2.0, y, font_size, color);
 }
 
-fn draw_button(label: &str, y: f32) -> bool {
-    let size = vec2((screen_width() - SIDE_PADDING * 2.0).min(320.0), HOME_BUTTON_HEIGHT);
+#[derive(Clone, Copy)]
+struct SplashScreenMetrics {
+    title_font_size: f32,
+    subtitle_font_size: f32,
+    timer_font_size: f32,
+    button_height: f32,
+    button_font_size: f32,
+    button_max_width: f32,
+}
+
+fn splash_screen_metrics() -> SplashScreenMetrics {
+    let short_side = screen_width().min(screen_height());
+    let scale = (short_side / 390.0).clamp(0.9, 1.5);
+
+    SplashScreenMetrics {
+        title_font_size: 54.0 * scale,
+        subtitle_font_size: 44.0 * scale,
+        timer_font_size: 80.0 * scale,
+        button_height: HOME_BUTTON_HEIGHT * scale,
+        button_font_size: BUTTON_FONT_SIZE * scale,
+        button_max_width: 320.0 * scale,
+    }
+}
+
+fn draw_button(label: &str, y: f32, metrics: SplashScreenMetrics) -> bool {
+    let size = vec2(
+        (screen_width() - SIDE_PADDING * 2.0).min(metrics.button_max_width),
+        metrics.button_height,
+    );
     let position = vec2((screen_width() - size.x) / 2.0, y);
-    let skin = primary_button_skin();
+    let skin = primary_button_skin(metrics.button_font_size);
 
     {
         let ui = &mut *root_ui();
@@ -347,14 +392,14 @@ fn draw_button(label: &str, y: f32) -> bool {
     clicked
 }
 
-fn primary_button_skin() -> Skin {
+fn primary_button_skin(button_font_size: f32) -> Skin {
     let ui = &mut *root_ui();
     let button_style = ui
         .style_builder()
-        .font_size(BUTTON_FONT_SIZE as u16)
-        .text_color(TEXT_DARK)
-        .text_color_hovered(TEXT_DARK)
-        .text_color_clicked(TEXT_DARK)
+        .font_size(button_font_size as u16)
+        .text_color(ORANGE_BG)
+        .text_color_hovered(ORANGE_BG)
+        .text_color_clicked(ORANGE_BG)
         .color(WHITE)
         .color_hovered(BUTTON_HOVER)
         .color_clicked(BUTTON_CLICK)

@@ -1,13 +1,11 @@
 use crate::game::{Cell, Checkpoint, Level};
-use rand::prelude::SliceRandom;
-use rand::{Rng, RngExt};
+use macroquad::rand::{ChooseRandom, gen_range};
 
 pub fn generate_level(total_cells: usize) -> Level {
     let size = (total_cells as f64).sqrt() as i16;
     let checkpoint_count = checkpoint_count(size, total_cells);
-    let mut rng = rand::rng();
 
-    if let Some(path) = generate_path(size as i16, &mut rng) {
+    if let Some(path) = generate_path(size as i16) {
         return Level {
             checkpoints: checkpoints_from_path(&path, checkpoint_count),
         };
@@ -23,30 +21,30 @@ fn checkpoint_count(size: i16, total_cells: usize) -> usize {
     suggested.clamp(5, total_cells)
 }
 
-fn generate_path(size: i16, rng: &mut impl Rng) -> Option<Vec<Cell>> {
+fn generate_path(size: i16) -> Option<Vec<Cell>> {
     let total_cells = (size as usize) * (size as usize);
-    let start = (rng.random_range(0..size), rng.random_range(0..size));
+    let start = (gen_range(0, size), gen_range(0, size));
     let mut path = Vec::with_capacity(total_cells);
     let mut visited = vec![false; total_cells];
 
     path.push(start);
     visited[cell_index(size, start)] = true;
 
-    if dfs(size, &mut path, &mut visited, rng) {
+    if dfs(size, &mut path, &mut visited) {
         Some(path)
     } else {
         None
     }
 }
 
-fn dfs(size: i16, path: &mut Vec<Cell>, visited: &mut [bool], rng: &mut impl Rng) -> bool {
+fn dfs(size: i16, path: &mut Vec<Cell>, visited: &mut [bool]) -> bool {
     if path.len() == visited.len() {
         return true;
     }
 
     let current = *path.last().expect("path must have a current cell");
     let mut candidates = neighbors(size, current);
-    candidates.shuffle(rng);
+    candidates.shuffle();
     candidates.sort_by_key(|&cell| onward_degree(size, cell, visited));
 
     for next in candidates {
@@ -58,7 +56,7 @@ fn dfs(size: i16, path: &mut Vec<Cell>, visited: &mut [bool], rng: &mut impl Rng
         visited[index] = true;
         path.push(next);
 
-        if dfs(size, path, visited, rng) {
+        if dfs(size, path, visited) {
             return true;
         }
 
