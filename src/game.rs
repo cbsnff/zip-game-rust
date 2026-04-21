@@ -1,4 +1,5 @@
 use macroquad::prelude::*;
+use macroquad::ui::{root_ui, widgets, Skin};
 
 use crate::generator::generate_level;
 
@@ -6,10 +7,11 @@ const ORANGE_BG: Color = color_u8!(245, 99, 28, 255);
 const ORANGE_PATH: Color = color_u8!(231, 83, 36, 255);
 const ORANGE_SOFT: Color = color_u8!(255, 229, 214, 255);
 const CREAM: Color = color_u8!(255, 247, 242, 255);
-const CARD: Color = color_u8!(255, 255, 255, 255);
 const TEXT_DARK: Color = color_u8!(39, 35, 33, 255);
 const GRID: Color = color_u8!(226, 216, 210, 255);
 const CHECKPOINT: Color = color_u8!(36, 32, 32, 255);
+const BUTTON_HOVER: Color = color_u8!(255, 241, 232, 255);
+const BUTTON_CLICK: Color = color_u8!(255, 221, 203, 255);
 
 const SIDE_PADDING: f32 = 20.0;
 const TOP_BAR_HEIGHT: f32 = 54.0;
@@ -21,13 +23,13 @@ const GRID_TOTAL_CELLS: usize = (GRID_SIZE as usize) * (GRID_SIZE as usize);
 
 pub type Cell = (i16, i16);
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Checkpoint {
     pub index: u8,
     pub cell: Cell,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Level {
     pub checkpoints: Vec<Checkpoint>,
 }
@@ -93,7 +95,6 @@ impl GameState {
         let layout = BoardLayout::new();
 
         clear_background(CREAM);
-        draw_game_top_bar(self.elapsed_seconds());
         self.draw_board(layout);
         self.draw_path(layout);
         self.draw_checkpoints(layout);
@@ -167,8 +168,24 @@ impl GameState {
             && self.next_checkpoint_index as usize > self.level.checkpoints.len()
     }
 
+    fn start_checkpoint_cell(&self) -> Cell {
+        self.level
+            .checkpoints
+            .first()
+            .expect("Level must have at least one checkpoint")
+            .cell
+    }
+
     fn draw_board(&self, layout: BoardLayout) {
-        draw_rounded_rect(layout.board_x, layout.board_y, layout.board_size, layout.board_size, 18.0, CARD);
+        let cc = self.start_checkpoint_cell();
+
+        draw_rectangle(
+                layout.board_x + cc.0 as f32 * layout.cell_size,
+                layout.board_y + cc.1 as f32 * layout.cell_size,
+                layout.cell_size,
+                layout.cell_size,
+                ORANGE_SOFT,
+            );
 
         for &(col, row) in &self.path {
             draw_rectangle(
@@ -280,109 +297,78 @@ impl GameState {
     }
 }
 
-pub fn draw_start_screen() {
+pub fn draw_start_screen() -> bool {
     clear_background(ORANGE_BG);
 
-    let logo_size = 90.0;
-    let logo_x = screen_width() / 2.0 - logo_size / 2.0;
     let logo_y = screen_height() * 0.22;
-    draw_rounded_rect(logo_x, logo_y, logo_size, logo_size, 24.0, color_u8!(255, 233, 221, 255));
 
     draw_centered_text("PawPath", logo_y + 138.0, 54.0, WHITE);
 
-    draw_primary_button("Go", start_button_rect());
+    draw_button("Go", screen_height() * 0.72)
 }
 
-pub fn draw_game_over_screen(elapsed_seconds: i32) {
+pub fn draw_game_over_screen(elapsed_seconds: i32) -> bool {
     clear_background(ORANGE_BG);
 
     draw_centered_text("Nice!", 152.0, 44.0, WHITE);
 
-    let card_w = 196.0;
-    let card_h = 182.0;
-    let card_x = screen_width() / 2.0 - card_w / 2.0;
     let card_y = 190.0;
-    draw_rounded_rect(card_x, card_y, card_w, card_h, 26.0, WHITE);
 
-    draw_icon_tile(card_x + 60.0, card_y + 28.0, 76.0, 76.0, color_u8!(255, 238, 229, 255));
     draw_centered_text(&format!("0:{:02}", elapsed_seconds), card_y + 132.0, 34.0, TEXT_DARK);
 
-    draw_primary_button("Play again", play_again_button_rect());
-}
-
-pub fn start_button_clicked() -> bool {
-    button_clicked(start_button_rect())
-}
-
-pub fn play_again_button_clicked() -> bool {
-    button_clicked(play_again_button_rect())
-}
-
-fn draw_game_top_bar(elapsed_seconds: i32) {
-    draw_text(
-        &format!("00:{:02}", elapsed_seconds),
-        SIDE_PADDING + 30.0,
-        TOP_BAR_HEIGHT + 14.0,
-        24.0,
-        TEXT_DARK,
-    );
-}
-
-fn draw_primary_button(label: &str, rect: Rect) {
-    draw_rounded_rect(rect.x, rect.y, rect.w, rect.h, rect.h / 2.0, WHITE);
-    draw_centered_at(label, rect.x + rect.w / 2.0, rect.y + rect.h / 2.0 + 6.0, BUTTON_FONT_SIZE, TEXT_DARK);
-}
-
-fn draw_icon_tile(x: f32, y: f32, w: f32, h: f32, color: Color) {
-    draw_rounded_rect(x, y, w, h, 14.0, color);
+    draw_button("New Game", screen_height() * 0.76)
 }
 
 fn draw_centered_text(text: &str, y: f32, font_size: f32, color: Color) {
-    draw_centered_at(text, screen_width() / 2.0, y, font_size, color);
-}
-
-fn draw_centered_at(text: &str, center_x: f32, y: f32, font_size: f32, color: Color) {
     let size = measure_text(text, None, font_size as u16, 1.0);
-    draw_text(text, center_x - size.width / 2.0, y, font_size, color);
+    draw_text(text, screen_width() / 2.0 - size.width / 2.0, y, font_size, color);
 }
 
-fn start_button_rect() -> Rect {
-    Rect::new(
-        SIDE_PADDING,
-        screen_height() - 90.0,
-        screen_width() - SIDE_PADDING * 2.0,
-        HOME_BUTTON_HEIGHT,
-    )
+fn draw_button(label: &str, y: f32) -> bool {
+    let size = vec2((screen_width() - SIDE_PADDING * 2.0).min(320.0), HOME_BUTTON_HEIGHT);
+    let position = vec2((screen_width() - size.x) / 2.0, y);
+    let skin = primary_button_skin();
+
+    {
+        let ui = &mut *root_ui();
+        ui.push_skin(&skin);
+    }
+
+    let clicked = {
+        let ui = &mut *root_ui();
+        widgets::Button::new(label).position(position).size(size).ui(ui)
+    };
+
+    {
+        let ui = &mut *root_ui();
+        ui.pop_skin();
+    }
+
+    clicked
 }
 
-fn play_again_button_rect() -> Rect {
-    Rect::new(
-        SIDE_PADDING,
-        screen_height() - 40.0,
-        screen_width() - SIDE_PADDING * 2.0,
-        58.0,
-    )
-}
+fn primary_button_skin() -> Skin {
+    let ui = &mut *root_ui();
+    let button_style = ui
+        .style_builder()
+        .font_size(BUTTON_FONT_SIZE as u16)
+        .text_color(TEXT_DARK)
+        .text_color_hovered(TEXT_DARK)
+        .text_color_clicked(TEXT_DARK)
+        .color(WHITE)
+        .color_hovered(BUTTON_HOVER)
+        .color_clicked(BUTTON_CLICK)
+        .color_inactive(WHITE)
+        .build();
 
-fn button_clicked(rect: Rect) -> bool {
-    is_mouse_button_pressed(MouseButton::Left)
-        && rect.contains(vec2(mouse_position().0, mouse_position().1))
+    Skin {
+        button_style,
+        ..ui.default_skin().clone()
+    }
 }
 
 fn is_neighbor(a: Cell, b: Cell) -> bool {
     let dx = (a.0 - b.0).abs();
     let dy = (a.1 - b.1).abs();
     dx + dy == 1
-}
-
-fn draw_rounded_rect(x: f32, y: f32, w: f32, h: f32, radius: f32, color: Color) {
-    let radius = radius.min(w / 2.0).min(h / 2.0);
-
-    draw_rectangle(x + radius, y, w - radius * 2.0, h, color);
-    draw_rectangle(x, y + radius, radius, h - radius * 2.0, color);
-    draw_rectangle(x + w - radius, y + radius, radius, h - radius * 2.0, color);
-    draw_circle(x + radius, y + radius, radius, color);
-    draw_circle(x + w - radius, y + radius, radius, color);
-    draw_circle(x + radius, y + h - radius, radius, color);
-    draw_circle(x + w - radius, y + h - radius, radius, color);
 }

@@ -3,13 +3,7 @@ use macroquad::prelude::*;
 mod generator;
 mod game;
 
-use game::{
-    GameState, 
-    draw_game_over_screen, 
-    draw_start_screen, 
-    play_again_button_clicked,
-    start_button_clicked,
-};
+use game::{draw_game_over_screen, draw_start_screen, GameState};
 
 enum AppState {
     Start,
@@ -23,11 +17,7 @@ fn start_new_game() -> AppState {
 
 fn update(app: &mut AppState) {
     match app {
-        AppState::Start => {
-            if start_button_clicked() {
-                *app = start_new_game();
-            }
-        }
+        AppState::Start => {}
         AppState::Game(game_state) => {
             if game_state.update() {
                 *app = AppState::GameOver {
@@ -35,18 +25,17 @@ fn update(app: &mut AppState) {
                 };
             }
         }
-        AppState::GameOver { .. } => {
-            if play_again_button_clicked() {
-                *app = start_new_game();
-            }
-        }
+        AppState::GameOver { .. } => {}
     }
 }
 
-fn render(app: &AppState) {
+fn render(app: &AppState) -> bool {
     match app {
         AppState::Start => draw_start_screen(),
-        AppState::Game(game_state) => game_state.draw(),
+        AppState::Game(game_state) => {
+            game_state.draw();
+            false
+        }
         AppState::GameOver { elapsed_seconds } => draw_game_over_screen(*elapsed_seconds),
     }
 }
@@ -57,7 +46,14 @@ async fn main() {
 
     loop {
         update(&mut app);
-        render(&app);
+        let button_clicked = render(&app);
+
+        match app {
+            AppState::Start if button_clicked => app = start_new_game(),
+            AppState::GameOver { .. } if button_clicked => app = start_new_game(),
+            _ => {}
+        }
+
         next_frame().await;
     }
 }
