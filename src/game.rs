@@ -1,5 +1,5 @@
 use macroquad::prelude::*;
-use macroquad::ui::{root_ui, widgets, Skin};
+use macroquad::ui::{Skin, root_ui, widgets};
 
 use crate::generator::generate_level;
 
@@ -83,7 +83,9 @@ impl GameState {
         let layout = BoardLayout::new();
         let hovered_cell = Self::cell_from_mouse(layout);
 
-        if is_mouse_button_down(MouseButton::Left) && let Some(cell) = hovered_cell {
+        if is_mouse_button_down(MouseButton::Left)
+            && let Some(cell) = hovered_cell
+        {
             return self.apply_move(cell);
         }
 
@@ -107,7 +109,13 @@ impl GameState {
     fn apply_move(&mut self, cell: Cell) -> bool {
         match self.path.last().copied() {
             None => {
-                if self.level.checkpoints.first().map(|checkpoint| checkpoint.cell) != Some(cell) {
+                if self
+                    .level
+                    .checkpoints
+                    .first()
+                    .map(|checkpoint| checkpoint.cell)
+                    != Some(cell)
+                {
                     return false;
                 }
 
@@ -180,12 +188,12 @@ impl GameState {
         let cc = self.start_checkpoint_cell();
 
         draw_rectangle(
-                layout.board_x + cc.0 as f32 * layout.cell_size,
-                layout.board_y + cc.1 as f32 * layout.cell_size,
-                layout.cell_size,
-                layout.cell_size,
-                ORANGE_SOFT,
-            );
+            layout.board_x + cc.0 as f32 * layout.cell_size,
+            layout.board_y + cc.1 as f32 * layout.cell_size,
+            layout.cell_size,
+            layout.cell_size,
+            ORANGE_SOFT,
+        );
 
         for &(col, row) in &self.path {
             draw_rectangle(
@@ -197,7 +205,7 @@ impl GameState {
             );
         }
 
-        for index in 0..= GRID_SIZE {
+        for index in 0..=GRID_SIZE {
             let shift = layout.cell_size * index as f32;
             let thickness = if index == 0 || index == GRID_SIZE {
                 2.5
@@ -313,7 +321,12 @@ pub fn draw_start_screen() -> bool {
     let logo_y = screen_height() * 0.22;
     let metrics = splash_screen_metrics();
 
-    draw_centered_text("Zip", logo_y + screen_height() * 0.16, metrics.title_font_size, WHITE);
+    draw_centered_text(
+        "Zip",
+        logo_y + screen_height() * 0.16,
+        metrics.title_font_size,
+        WHITE,
+    );
 
     draw_button("Go", screen_height() * 0.72, metrics)
 }
@@ -339,7 +352,13 @@ pub fn draw_game_over_screen(elapsed_seconds: i32) -> bool {
 
 fn draw_centered_text(text: &str, y: f32, font_size: f32, color: Color) {
     let size = measure_text(text, None, font_size as u16, 1.0);
-    draw_text(text, screen_width() / 2.0 - size.width / 2.0, y, font_size, color);
+    draw_text(
+        text,
+        screen_width() / 2.0 - size.width / 2.0,
+        y,
+        font_size,
+        color,
+    );
 }
 
 #[derive(Clone, Copy)]
@@ -381,7 +400,10 @@ fn draw_button(label: &str, y: f32, metrics: SplashScreenMetrics) -> bool {
 
     let clicked = {
         let ui = &mut *root_ui();
-        widgets::Button::new(label).position(position).size(size).ui(ui)
+        widgets::Button::new(label)
+            .position(position)
+            .size(size)
+            .ui(ui)
     };
 
     {

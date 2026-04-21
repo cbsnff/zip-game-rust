@@ -1,9 +1,9 @@
 use macroquad::prelude::*;
 
-mod generator;
 mod game;
+mod generator;
 
-use game::{draw_game_over_screen, draw_start_screen, GameState};
+use game::{GameState, draw_game_over_screen, draw_start_screen};
 
 enum AppState {
     Start,

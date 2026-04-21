@@ -40,3 +40,17 @@ The search pushes one route forward as far as possible. When it reaches a dead e
 - `visited` prevents the search from reusing cells
 
 This keeps generation deterministic at the rule level while still producing different boards from run to run.
+
+## Git Hooks
+
+The repository includes a plain Git pre-commit hook with no extra dependencies. It runs:
+
+- `cargo fmt --all --check`
+- `cargo check --locked`
+
+Enable it once per clone with:
+
+```bash
+git config core.hooksPath .githooks
+chmod +x .githooks/pre-commit
+```

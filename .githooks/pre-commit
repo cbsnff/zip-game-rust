@@ -1,0 +1,9 @@
+#!/bin/sh
+
+set -e
+
+echo "Running cargo fmt --all --check"
+cargo fmt --all --check
+
+echo "Running cargo check --locked"
+cargo check --locked
