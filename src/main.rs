@@ -1,7 +1,10 @@
 use macroquad::prelude::*;
 
 mod app;
+mod generator;
 mod game;
+mod level;
+mod rules;
 
 use app::AppState;
 use game::{
@@ -9,11 +12,15 @@ use game::{
     start_button_clicked,
 };
 
+fn start_new_game() -> AppState {
+    AppState::Game(GameState::new(get_time()))
+}
+
 fn update(app: &mut AppState) {
     match app {
         AppState::Start => {
             if start_button_clicked() {
-                *app = AppState::Game(GameState::new(get_time()));
+                *app = start_new_game();
             }
         }
         AppState::Game(game_state) => {
@@ -25,7 +32,7 @@ fn update(app: &mut AppState) {
         }
         AppState::GameOver { .. } => {
             if play_again_button_clicked() {
-                *app = AppState::Game(GameState::new(get_time()));
+                *app = start_new_game();
             }
         }
     }
