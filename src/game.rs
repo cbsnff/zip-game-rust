@@ -1,8 +1,6 @@
 use macroquad::prelude::*;
 
 use crate::generator::generate_level;
-use crate::level::{Cell, Level};
-use crate::rules::{self, MoveOutcome};
 
 const ORANGE_BG: Color = color_u8!(245, 99, 28, 255);
 const ORANGE_PATH: Color = color_u8!(231, 83, 36, 255);
@@ -18,7 +16,21 @@ const TOP_BAR_HEIGHT: f32 = 54.0;
 const BOTTOM_PANEL_HEIGHT: f32 = 172.0;
 const HOME_BUTTON_HEIGHT: f32 = 62.0;
 const BUTTON_FONT_SIZE: f32 = 28.0;
-const GRID_SIZE: i16 = 5;
+pub const GRID_SIZE: i16 = 5;
+const GRID_TOTAL_CELLS: usize = (GRID_SIZE as usize) * (GRID_SIZE as usize);
+
+pub type Cell = (i16, i16);
+
+#[derive(Clone, Copy)]
+pub struct Checkpoint {
+    pub index: u8,
+    pub cell: Cell,
+}
+
+#[derive(Clone)]
+pub struct Level {
+    pub checkpoints: Vec<Checkpoint>,
+}
 
 #[derive(Clone, Copy)]
 struct BoardLayout {
@@ -29,7 +41,7 @@ struct BoardLayout {
 }
 
 impl BoardLayout {
-    fn new(size: i16) -> Self {
+    fn new() -> Self {
         let available_width = screen_width() - SIDE_PADDING * 2.0;
         let available_height = screen_height() - TOP_BAR_HEIGHT - BOTTOM_PANEL_HEIGHT - 42.0;
         let card_size = available_width.min(available_height);
@@ -42,54 +54,43 @@ impl BoardLayout {
             board_x: card_x + inset,
             board_y: card_y + inset,
             board_size,
-            cell_size: board_size / size as f32,
+            cell_size: board_size / GRID_SIZE as f32,
         }
     }
 }
 
 pub struct GameState {
     level: Level,
-    path_cells: Vec<Cell>,
-    hovered_cell: Option<Cell>,
+    path: Vec<Cell>,
     next_checkpoint_index: u8,
     start_time: f64,
 }
 
 impl GameState {
     pub fn new(start_time: f64) -> Self {
-        let level = generate_level(GRID_SIZE);
+        let level = generate_level(GRID_TOTAL_CELLS);
 
         Self {
             level,
-            path_cells: Vec::new(),
-            hovered_cell: None,
+            path: Vec::new(),
             next_checkpoint_index: 1,
             start_time,
         }
     }
 
     pub fn update(&mut self) -> bool {
-        let layout = BoardLayout::new(self.level.size);
+        let layout = BoardLayout::new();
+        let hovered_cell = Self::cell_from_mouse(layout);
 
-        self.hovered_cell = Self::cell_from_mouse(layout, self.level.size);
-
-        if is_mouse_button_down(MouseButton::Left) && let Some(cell) = self.hovered_cell {
-            return matches!(
-                rules::apply_move(
-                    &self.level,
-                    &mut self.path_cells,
-                    &mut self.next_checkpoint_index,
-                    cell,
-                ),
-                MoveOutcome::Completed
-            );
+        if is_mouse_button_down(MouseButton::Left) && let Some(cell) = hovered_cell {
+            return self.apply_move(cell);
         }
 
         false
     }
 
     pub fn draw(&self) {
-        let layout = BoardLayout::new(self.level.size);
+        let layout = BoardLayout::new();
 
         clear_background(CREAM);
         draw_game_top_bar(self.elapsed_seconds());
@@ -102,10 +103,74 @@ impl GameState {
         (get_time() - self.start_time) as i32
     }
 
+    fn apply_move(&mut self, cell: Cell) -> bool {
+        match self.path.last().copied() {
+            None => {
+                if self.level.checkpoints.first().map(|checkpoint| checkpoint.cell) != Some(cell) {
+                    return false;
+                }
+
+                self.path.push(cell);
+                self.next_checkpoint_index = 2;
+                self.is_complete()
+            }
+            Some(last) if cell == last => false,
+            Some(last) if !is_neighbor(last, cell) => false,
+            Some(_) if self.path.contains(&cell) => {
+                self.backtrack_to(cell);
+                false
+            }
+            Some(_) => {
+                if let Some(checkpoint_index) = self.checkpoint_at(cell) {
+                    if checkpoint_index != self.next_checkpoint_index {
+                        return false;
+                    }
+
+                    self.path.push(cell);
+                    self.next_checkpoint_index += 1;
+                    self.is_complete()
+                } else {
+                    self.path.push(cell);
+                    self.is_complete()
+                }
+            }
+        }
+    }
+
+    fn checkpoint_at(&self, cell: Cell) -> Option<u8> {
+        self.level
+            .checkpoints
+            .iter()
+            .find(|checkpoint| checkpoint.cell == cell)
+            .map(|checkpoint| checkpoint.index)
+    }
+
+    fn backtrack_to(&mut self, cell: Cell) {
+        let Some(position) = self.path.iter().position(|&path_cell| path_cell == cell) else {
+            return;
+        };
+
+        self.path.truncate(position + 1);
+        self.next_checkpoint_index = 1;
+
+        for checkpoint in &self.level.checkpoints {
+            if self.path.contains(&checkpoint.cell) {
+                self.next_checkpoint_index = checkpoint.index + 1;
+            } else {
+                break;
+            }
+        }
+    }
+
+    fn is_complete(&self) -> bool {
+        self.path.len() == GRID_TOTAL_CELLS
+            && self.next_checkpoint_index as usize > self.level.checkpoints.len()
+    }
+
     fn draw_board(&self, layout: BoardLayout) {
         draw_rounded_rect(layout.board_x, layout.board_y, layout.board_size, layout.board_size, 18.0, CARD);
 
-        for &(col, row) in &self.path_cells {
+        for &(col, row) in &self.path {
             draw_rectangle(
                 layout.board_x + col as f32 * layout.cell_size,
                 layout.board_y + row as f32 * layout.cell_size,
@@ -115,9 +180,9 @@ impl GameState {
             );
         }
 
-        for index in 0..=self.level.size {
+        for index in 0..= GRID_SIZE {
             let shift = layout.cell_size * index as f32;
-            let thickness = if index == 0 || index == self.level.size {
+            let thickness = if index == 0 || index == GRID_SIZE {
                 2.5
             } else {
                 1.5
@@ -147,13 +212,13 @@ impl GameState {
         let path_thickness = (layout.cell_size * 0.52).max(10.0);
         let path_node_radius = (layout.cell_size * 0.26).max(10.0);
 
-        for segment in self.path_cells.windows(2) {
+        for segment in self.path.windows(2) {
             let start = Self::cell_center(segment[0], layout);
             let end = Self::cell_center(segment[1], layout);
             draw_line(start.0, start.1, end.0, end.1, path_thickness, ORANGE_PATH);
         }
 
-        for &cell in &self.path_cells {
+        for &cell in &self.path {
             let center = Self::cell_center(cell, layout);
             draw_circle(center.0, center.1, path_node_radius, ORANGE_PATH);
         }
@@ -165,7 +230,7 @@ impl GameState {
 
         for checkpoint in &self.level.checkpoints {
             let center = Self::cell_center(checkpoint.cell, layout);
-            let is_reached = self.path_cells.contains(&checkpoint.cell);
+            let is_reached = self.path.contains(&checkpoint.cell);
 
             draw_circle(
                 center.0,
@@ -193,7 +258,7 @@ impl GameState {
         )
     }
 
-    fn cell_from_mouse(layout: BoardLayout, size: i16) -> Option<Cell> {
+    fn cell_from_mouse(layout: BoardLayout) -> Option<Cell> {
         let (mouse_x, mouse_y) = mouse_position();
 
         if mouse_x < layout.board_x
@@ -207,7 +272,7 @@ impl GameState {
         let col = ((mouse_x - layout.board_x) / layout.cell_size) as i16;
         let row = ((mouse_y - layout.board_y) / layout.cell_size) as i16;
 
-        if col < 0 || col >= size || row < 0 || row >= size {
+        if col < 0 || col >= GRID_SIZE || row < 0 || row >= GRID_SIZE {
             return None;
         }
 
@@ -302,6 +367,12 @@ fn play_again_button_rect() -> Rect {
 fn button_clicked(rect: Rect) -> bool {
     is_mouse_button_pressed(MouseButton::Left)
         && rect.contains(vec2(mouse_position().0, mouse_position().1))
+}
+
+fn is_neighbor(a: Cell, b: Cell) -> bool {
+    let dx = (a.0 - b.0).abs();
+    let dy = (a.1 - b.1).abs();
+    dx + dy == 1
 }
 
 fn draw_rounded_rect(x: f32, y: f32, w: f32, h: f32, radius: f32, color: Color) {

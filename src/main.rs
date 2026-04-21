@@ -1,16 +1,21 @@
 use macroquad::prelude::*;
 
-mod app;
 mod generator;
 mod game;
-mod level;
-mod rules;
 
-use app::AppState;
 use game::{
-    GameState, draw_game_over_screen, draw_start_screen, play_again_button_clicked,
+    GameState, 
+    draw_game_over_screen, 
+    draw_start_screen, 
+    play_again_button_clicked,
     start_button_clicked,
 };
+
+enum AppState {
+    Start,
+    Game(GameState),
+    GameOver { elapsed_seconds: i32 },
+}
 
 fn start_new_game() -> AppState {
     AppState::Game(GameState::new(get_time()))
@@ -46,7 +51,7 @@ fn render(app: &AppState) {
     }
 }
 
-#[macroquad::main("Zip")]
+#[macroquad::main("PawPath")]
 async fn main() {
     let mut app = AppState::Start;
 
